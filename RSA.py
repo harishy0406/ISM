@@ -1,5 +1,4 @@
 import math
-
 # 1. Take two prime numbers as input
 p = int(input("Enter first prime number (p): "))
 q = int(input("Enter second prime number (q): "))
