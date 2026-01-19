@@ -1,3 +1,4 @@
+# Linear Public Key Cryptography:
 import random
 import secrets
 
@@ -47,7 +48,7 @@ def number_to_text(num):
     byte_len = (num.bit_length() + 7) // 8
     return num.to_bytes(byte_len, 'big').decode('utf-8')
 
-
+print("\n===Linear Public Key Cryptography===\n")
 # ---------- Key Generation ----------
 bits = int(input("Enter key size in bits (128 / 256 / 512): "))
 
@@ -70,6 +71,7 @@ print(n)
 
 
 # ---------- Message Input ----------
+
 msg = input("\nEnter message (number / text / special chars): ")
 
 # Detect numeric or text

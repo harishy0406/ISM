@@ -1,3 +1,5 @@
+# Intelligent Cryptography Implementation
+
 import random
 
 # ---------- Helper Functions ----------
@@ -45,7 +47,7 @@ def smart_decrypt(enc_a, enc_b, secret):
 # ---------- Main Execution ----------
 
 if __name__ == "__main__":
-
+    print("\n=== Intelligent Cryptography ===")
     user_input = input("Enter data (number / text / symbols): ")
     key_value = int(input("Enter secret key (number): "))
 
