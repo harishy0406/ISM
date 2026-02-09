@@ -1,7 +1,7 @@
 import math
 import random
 
-# Fixed parameters from the example (small for demo/educational purposes)
+# Fixed parameters
 p = 11
 q = 3
 N = p * q          # 33
