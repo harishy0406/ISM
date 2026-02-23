@@ -1,142 +1,95 @@
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import rsa, padding
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives.padding import PKCS7
-import os
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.Signature import pkcs1_15
+from Crypto.Hash import SHA256
+from Crypto.Random import get_random_bytes
 import base64
 
-def generate_rsa_keys(key_size=512):
-    """Generate RSA private and public keys."""
-    private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=key_size
-    )
-    public_key = private_key.public_key()
-    return private_key, public_key
+# ---------- Helper Padding Functions ----------
+def pad(data):
+    pad_len = 16 - len(data) % 16
+    return data + bytes([pad_len]) * pad_len
 
-def sign_message(private_key, message):
-    """Sign the message by hashing it and encrypting the hash with the private key."""
-    digest = hashes.Hash(hashes.SHA256())
-    digest.update(message.encode('utf-8'))
-    hash_value = digest.finalize()
-    
-    signature = private_key.sign(
-        hash_value,
-        padding.PSS(
-            mgf=padding.MGF1(hashes.SHA256()),
-            salt_length=padding.PSS.MAX_LENGTH
-        ),
-        hashes.SHA256()
-    )
-    return signature, hash_value
+def unpad(data):
+    return data[:-data[-1]]
 
-def encrypt_message(message):
-    """Encrypt the message using a symmetric AES key."""
-    aes_key = os.urandom(32)  # 256-bit AES key
-    iv = os.urandom(16)       # Initialization vector
-    
-    padder = PKCS7(128).padder()
-    padded_data = padder.update(message.encode('utf-8')) + padder.finalize()
-    
-    cipher = Cipher(algorithms.AES(aes_key), modes.CBC(iv))
-    encryptor = cipher.encryptor()
-    encrypted_message = encryptor.update(padded_data) + encryptor.finalize()
-    
-    return aes_key, iv, encrypted_message
+# ---------- MAIN PROGRAM ----------
+print("\n========== HYBRID DIGITAL SIGNATURE SYSTEM ==========\n")
 
-def encrypt_aes_key(public_key, aes_key):
-    """Encrypt the symmetric AES key using the public key."""
-    encrypted_aes_key = public_key.encrypt(
-        aes_key,
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
-        )
-    )
-    return encrypted_aes_key
+# User input
+message = input("Enter your message: ").encode()
 
-def decrypt_aes_key(private_key, encrypted_aes_key):
-    """Decrypt the symmetric AES key using the private key."""
-    aes_key = private_key.decrypt(
-        encrypted_aes_key,
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
-        )
-    )
-    return aes_key
+# ---------------------------------------------------
+# STEP 3: Generate PKC (RSA) Keys - 1024 bits
+# ---------------------------------------------------
+rsa_key = RSA.generate(1024)
+private_key = rsa_key
+public_key = rsa_key.publickey()
 
-def decrypt_message(aes_key, iv, encrypted_message):
-    """Decrypt the message using the symmetric AES key."""
-    cipher = Cipher(algorithms.AES(aes_key), modes.CBC(iv))
-    decryptor = cipher.decryptor()
-    decrypted_padded = decryptor.update(encrypted_message) + decryptor.finalize()
-    
-    unpadder = PKCS7(128).unpadder()
-    decrypted_message = unpadder.update(decrypted_padded) + unpadder.finalize()
-    
-    return decrypted_message.decode('utf-8')
+print("\n--- RSA Keys Generated (512 bits) ---")
+print("Public Key:\n", public_key.export_key().decode())
+print("Private Key:\n", private_key.export_key().decode())
 
-def verify_signature(public_key, signature, hash_value):
-    """Verify the signature using the public key."""
-    try:
-        public_key.verify(
-            signature,
-            hash_value,
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA256()),
-                salt_length=padding.PSS.MAX_LENGTH
-            ),
-            hashes.SHA256()
-        )
-        return True
-    except:
-        return False
+# ---------------------------------------------------
+# STEP 1: Hash Message + Digital Signature
+# ---------------------------------------------------
+hash_msg = SHA256.new(message)
+signature = pkcs1_15.new(private_key).sign(hash_msg)
 
-def main():
-    # Step 3: Generate set of PKC keys (RSA 512-bit)
-    print("Generating RSA key pair (512 bits)...")
-    private_key, public_key = generate_rsa_keys(512)
-    
-    # Take input from user
-    message = input("Enter the message to sign and encrypt: ")
-    
-    # Step 1: Message with hash code (sign the hash using private key)
-    print("\nSigning the message...")
-    signature, original_hash = sign_message(private_key, message)
-    
-    # Step 2: Message encryption using symmetric key
-    print("Encrypting the message with symmetric key...")
-    aes_key, iv, encrypted_message = encrypt_message(message)
-    
-    # Encrypt the symmetric key with public key (hybrid aspect)
-    print("Encrypting the symmetric key with public key...")
-    encrypted_aes_key = encrypt_aes_key(public_key, aes_key)
-    
-    # For demonstration: Decrypt and verify
-    print("\nDemonstrating decryption and verification...")
-    decrypted_aes_key = decrypt_aes_key(private_key, encrypted_aes_key)
-    decrypted_message = decrypt_message(decrypted_aes_key, iv, encrypted_message)
-    
-    # Recompute hash of decrypted message
-    digest = hashes.Hash(hashes.SHA256())
-    digest.update(decrypted_message.encode('utf-8'))
-    decrypted_hash = digest.finalize()
-    
-    is_valid = verify_signature(public_key, signature, decrypted_hash)
-    
-    # Display results in a formatted way
-    print("\n" + "=" * 50)
-    print("Original Message:".ljust(25) + message)
-    print("Decrypted Message:".ljust(25) + decrypted_message)
-    print("Signature Valid:".ljust(25) + str(is_valid))
-    print("Encrypted Message:".ljust(25) + base64.b64encode(encrypted_message).decode('utf-8')[:50] + "... (truncated)")
-    print("Signature:".ljust(25) + base64.b64encode(signature).decode('utf-8')[:50] + "... (truncated)")
-    print("Encrypted AES Key:".ljust(25) + base64.b64encode(encrypted_aes_key).decode('utf-8')[:50] + "... (truncated)")
-    print("IV:".ljust(25) + base64.b64encode(iv).decode('utf-8'))
-    print("=" * 50)
+print("\n--- Message Hash (SHA-256) ---")
+print(hash_msg.hexdigest())
 
-if __name__ == "__main__":
-    main()
+print("\n--- Digital Signature ---")
+print(base64.b64encode(signature).decode())
+
+# ---------------------------------------------------
+# STEP 2: Symmetric Encryption (AES)
+# ---------------------------------------------------
+aes_key = get_random_bytes(16)
+aes_cipher = AES.new(aes_key, AES.MODE_CBC)
+ciphertext = aes_cipher.encrypt(pad(message))
+
+print("\n--- AES Symmetric Key ---")
+print(base64.b64encode(aes_key).decode())
+
+print("\n--- Encrypted Message (AES) ---")
+print(base64.b64encode(ciphertext).decode())
+
+# ---------------------------------------------------
+# Encrypt AES Key using RSA Public Key
+# ---------------------------------------------------
+rsa_cipher = PKCS1_OAEP.new(public_key)
+encrypted_aes_key = rsa_cipher.encrypt(aes_key)
+
+print("\n--- AES Key Encrypted Using RSA Public Key ---")
+print(base64.b64encode(encrypted_aes_key).decode())
+
+# ===================================================
+# RECEIVER SIDE
+# ===================================================
+print("\n========== RECEIVER SIDE ==========")
+
+# Decrypt AES Key
+rsa_dec = PKCS1_OAEP.new(private_key)
+decrypted_aes_key = rsa_dec.decrypt(encrypted_aes_key)
+
+# Decrypt Message
+aes_dec = AES.new(decrypted_aes_key, AES.MODE_CBC, aes_cipher.iv)
+decrypted_msg = unpad(aes_dec.decrypt(ciphertext))
+
+# Verify Signature
+hash_recv = SHA256.new(decrypted_msg)
+
+try:
+    pkcs1_15.new(public_key).verify(hash_recv, signature)
+    status = "VALID"
+except:
+    status = "INVALID"
+
+print("\n--- Decrypted Message ---")
+print(decrypted_msg.decode())
+
+print("\n--- Signature Verification ---")
+print(status)
+
+print("\n========== PROCESS COMPLETED SUCCESSFULLY ==========\n")
