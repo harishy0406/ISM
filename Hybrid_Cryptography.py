@@ -24,7 +24,6 @@ def decode_data(num, mode):
     length = (num.bit_length() + 7) // 8
     return num.to_bytes(length, "big").decode("utf-8")
 
-
 # =====================================================
 # SECTION 2: INTELLIGENT SPLIT ENCRYPTION (NOVEL CORE)
 # =====================================================
