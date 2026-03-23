@@ -5,7 +5,7 @@ Suitable for large messages / files
 Features:
 - RSA-OAEP for key encapsulation (2048-bit)
 - AES-256-CBC + PKCS7 padding for content
-- Base64 encoding for transmission
+- Base64 encoding for transmission 
 - Supports text input or file reading
 """
 
