@@ -70,7 +70,7 @@ def create_envelope(plaintext: bytes, public_key) -> dict:
 
     cipher = Cipher(algorithms.AES(session_key), modes.CBC(iv))
     encryptor = cipher.encryptor()
-    ciphertext = encryptor.update(padded) + encryptor.finalize()
+    ciphertext = encryptor.update(padded) + encryptor.finalize() 
 
     # ── Encrypt session key with RSA-OAEP ──────────────
     encrypted_key = public_key.encrypt(
